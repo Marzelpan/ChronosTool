@@ -91,7 +91,7 @@ class CBMcmd():
 		return str( self.tobytes() )
 
 	def tohex( self ):
-		return self.tostr().encode('hex')
+		return self.tobytes().hex()
 
 	def getitem( self ):
 		return self.tobytes()
@@ -128,8 +128,7 @@ class CBMburst:
 	@classmethod
 	def setmaxlen( cls, len ):
 		cls.max_burst_len = len
-		if opt.verbose:
-			print >> sys.stderr, "Maximum CBM burst length set to", hex( len )
+		vlog(f"Maximum CBM burst length set to {hex( len )}")
 
 	def topayloads( self ):
 		#Reshape each burst into payloads
@@ -191,7 +190,7 @@ class CBMdata:
 		elif isinstance( src, bytearray ):
 			input = str( src )
 		else:
-			print >> sys.stderr, "ERROR: unable to handle argument to importtxt"
+			print("ERROR: unable to handle argument to importtxt", file=sys.stderr)
 			sys.exit( 9 )
 
 		# Flatten string by removing spaces and newlines
@@ -199,7 +198,7 @@ class CBMdata:
 
 		# Minimal sanity check
 		if input[0] != '@' or input[-1] != 'q':
-			print >> sys.stderr, "ERROR: malformed import data"
+			print("ERROR: malformed import data", file=sys.stderr)
 			sys.exit( 9 )
 
 		# Remove first @ and final q and split into chunks
@@ -209,9 +208,8 @@ class CBMdata:
 		for chunk in chunks:
 			# First two bytes are address
 			address = int( chunk[:4], 16 )
-			data = bytearray( chunk[4:].decode( 'hex' ) )
-			if opt.verbose:
-				print >> sys.stderr, "Chunk at address @" + hex(address) + ", length", len(data)
+			data = bytearray.fromhex(chunk[4:])
+			vlog(f"Chunk at address @{hex(address)}, length {len(data)}")
 			self.chunks.append( CBMchunk( address, data ) )
 
 	def tochunks( self ):
@@ -222,8 +220,7 @@ class CBM:
 	"Class for the Chronos Base Module"
 
 	def __init__( self, device_name ):
-		if opt.verbose:
-			print >> sys.stderr, 'Using Chronos Base Module on', device_name
+		vlog(f"Using Chronos Base Module on {device_name}")
 		#opt will be decomissioned by the time __del__ is called
 		self.optverbose = opt.verbose
 		self.device = serial.Serial( device_name, 115200, timeout = 1 )
@@ -239,21 +236,19 @@ class CBM:
 
 	def __del__( self ):
 		if self.optverbose:
-			print >> sys.stderr, 'Closing Chronos Base Module at', self.device.port
+			print('Closing Chronos Base Module at', self.device.port, file=sys.stderr)
 		#self.reset()
 		self.device.close
 
 	def send( self, cmd ):
-		self.device.write( cmd.tostr() )
+		self.device.write( cmd.tobytes() )
 		time.sleep( 0.015 )
-		if opt.verbose:
-			print >> sys.stderr, 'SENT:', cmd.tohex()
+		vlog(f"SENT: {cmd.tohex()}")
 		response = bytearray( self.device.read( 3 ) )
 		if response[2] > 3:
 			response += bytearray( self.device.read( response[2]-3 ) )
 		self.response = CBMcmd( response[1], response[3:] )
-		if opt.verbose:
-			print >> sys.stderr, 'RECV:', self.response.tohex()
+		vlog(f"RECV: {self.response.tohex()}")
 		return self.response
 
 	def sendcmd( self, opcode, payload=[] ):
@@ -401,7 +396,8 @@ class CBM:
 
 	def spl_sync( self, dt=[], celsius=0, meters=0 ):
 		self.spl_start()
-		raw_input("Put your watch in sync mode, wait a few seconds, and press return...")
+		print("Put your watch in sync mode, wait a few seconds, and press return...")
+		input()
 		time.sleep( 2 )
 
 		if not dt:
@@ -451,8 +447,7 @@ class CBM:
 						self.sendburst( burstlist[0] )
 						burstlist = burstlist[1:]
 					else:
-						if opt.verbose:
-							print >> sys.stderr, "WARNING: Burstlist underflow"
+						vlog("WARNING: Burstlist underflow")
 						time.sleep(0.05)
 				else:			#WBSL_COMPLETE
 					done = 1
@@ -647,12 +642,17 @@ q""" )
 		data = CBMdata()
 		data.importtxt( txtdata )
 
-		print "Put your watch in rfbsl \"open\" mode and press return. Afterwards,"
-		raw_input( "wait for a few seconds and start rfbsl download on the watch..." )
-
+		print("Put your watch in rfbsl \"open\" mode and press return. Afterwards,")
+		print( "wait for a few seconds and start rfbsl download on the watch..." )
+		input()
 		self.transmitburst( updater )
 		self.transmitburst( data )		
 		time.sleep( 1 )
+
+###################################################################################################
+def vlog(message):
+	if opt.verbose:
+		print(message, file=sys.stderr)
 
 ###################################################################################################
 # main
@@ -674,7 +674,7 @@ parser.add_option( "-v", "--verbose", action="store_true", dest="verbose", defau
 
 #Command must be given
 if len( args ) == 0:
-	print >> sys.stderr, "ERROR: you must specify a command"
+	print("ERROR: you must specify a command", file=sys.stderr)
 	sys.exit( 5 )
 
 #If no device option given, try to guess
@@ -685,17 +685,17 @@ if not opt.device:
 			opt.device = path
 #Check for device
 if (not opt.device) or (not os.path.exists( opt.device )):
-	print >> sys.stderr, "ERROR: no Base Module device found, please specify as option"
+	print("ERROR: no Base Module device found, please specify as option", file=sys.stderr)
 	sys.exit( 6 )
 
 command = args[0]
 if command == "rfbsl":
 	if len( args ) < 2:
-        	print >> sys.stderr, "ERROR: rfbsl requires file name as argument"
+        	print("ERROR: rfbsl requires file name as argument", file=sys.stderr)
         	sys.exit( 5 )
 	file = args[1]
 	if not os.path.isfile( file ):
-		print >> sys.stderr, "ERROR: cannot open", file
+		print("ERROR: cannot open", file, file=sys.stderr)
 		sys.exit( 7 )
 	bm = CBM( opt.device )
 	bm.wbsl_download( file )
@@ -704,11 +704,11 @@ elif command == "sync":
 	bm.spl_sync()
 elif command == "prg":
 	if len( args ) < 2:
-        	print >> sys.stderr, "ERROR: prg requires file name as argument"
+        	print("ERROR: prg requires file name as argument", file=sys.stderr)
         	sys.exit( 5 )
 	file = args[1]
 	if not os.path.isfile( file ):
-		print >> sys.stderr, "ERROR: cannot open", file
+		print("ERROR: cannot open", file, file=sys.stderr)
 		sys.exit( 7 )
 	bm = CBM( opt.device )
 	bm.wbsl_download( file )
@@ -719,8 +719,8 @@ elif command == "accel":
         while True:
                 data = bm.spl_getaccel()
                 if data[0]:
-                        print str( data[1] ) + " " + str( data[2] ) + " " + str( data[3] )
+                        print(str( data[1] ) + " " + str( data[2] ) + " " + str( data[3] ))
 else:
-	print >> sys.stderr, "ERROR: invalid command:", command
+	print("ERROR: invalid command:", command, file=sys.stderr)
 	sys.exit( 4 )
 
