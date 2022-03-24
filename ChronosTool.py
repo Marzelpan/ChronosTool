@@ -256,45 +256,59 @@ class CBM:
 		return self.send( cmd )
 
 	def _reset( self ):
+		vlog('CMD: BM_RESET')
 		return self.sendcmd( 0x01 )		#BM_Reset
 
 	def _getstatus( self ):
+		vlog('CMD: BM_GET_STATUS')
 		return self.sendcmd( 0x00, [0x00] )	#BM_GetStatus
 
 	def _br_stop( self ):
+		vlog('CMD: BM_STOP_BLUEROBIN')
 		return self.sendcmd( 0x06 )		#BM_BR_Stop
 
 	def _spl_start( self ):
+		vlog('CMD: BM_START_SIMPLICITI')
 		return self.sendcmd( 0x07 )		#BM_SPL_Start
 
 	def _spl_getdata( self ):
+		vlog('CMD: BM_GET_SIMPLICITIDATA')
 		return self.sendcmd( 0x08, [0x00, 0x00, 0x00, 0x00] )	#BM_GetData
 
 	def _spl_stop( self ):
+		vlog('CMD: BM_STOP_SIMPLICITI')
 		return self.sendcmd( 0x09 )		#BM_SPL_Stop
 
 	def _sync_start( self ):
+		vlog('CMD: BM_SYNC_START')
 		return self.sendcmd( 0x30 )		#BM_SYNC_Start
 
 	def _sync_getbufferstatus( self ):
+		vlog('CMD: BM_SYNC_GET_BUFFER_STATUS')
 		return self.sendcmd( 0x32, [0x00] )	#BM_SYNC_GetBufferStatus
 	
 	def _sync_readbuffer( self ):
+		vlog('CMD: BM_SYNC_READ_BUFFER')
 		return self.sendcmd( 0x33, [0x00] )	#BM_SYNC_ReadBuffer
 
 	def _wbsl_start( self ):
+		vlog('CMD: BM_START_WBSL')
 		return self.sendcmd( 0x40 )		#BM_WBSL_Start
 
 	def _wbsl_stop( self ):
+		vlog('CMD: BM_STOP_WBSL')
 		return self.sendcmd( 0x46 )		#BM_WBSL_Stop
 
 	def _wbsl_getstatus( self ):
+		vlog('CMD: BM_GET_WBSL_STATUS')
 		return self.sendcmd( 0x41, [0x00] )	#BM_WBSL_GetStatus
 
 	def _wbsl_getmaxpayload( self ):
+		vlog('CMD: BM_GET_MAX_PAYLOAD_WBSL')
 		return self.sendcmd( 0x49, [0x00] )	#BM_WBSL_GetMaxPayload
 
 	def _wbsl_getpacketstatus( self ):
+		vlog('CMD: BM_GET_PACKET_STATUS_WBSL')
 		return self.sendcmd( 0x48, [0x00] )	#BM_WBSL_GetPacketStatus
 
 	def reset( self ):
@@ -391,7 +405,8 @@ class CBM:
 	def sendburstheader( self, bursts ):
 		#Construct initial info block
 		nr_of_bursts = len( bursts )
-		payload = bytearray( [0x00, nr_of_bursts&0xff, nr_of_bursts>>8] )
+		payload = bytearray( [0x00, nr_of_bursts&0xff, nr_of_bursts>>8] ) # WBSL_INIT_PACKET, OP Code 00
+		vlog(f"Send Burst Header: {nr_of_bursts} bursts")
 		return self.sendcmd( 0x47, payload )
 
 	def spl_sync( self, dt=[], celsius=0, meters=0 ):
@@ -437,12 +452,16 @@ class CBM:
 			while not done:
 				status = self.wbsl_getpacketstatus()[0]
 				if   status == 1:	#WBSL_DISABLED
+					vlog('Packet Status: WBSL_DISABLED')
 					time.sleep( 0.2 )
 				elif status == 2:	#WBSL_PROCESSING
+					vlog('Packet Status: WBSL_PROCESSING_PACKET')
 					time.sleep( 0.1 )
 				elif status == 4:	#WBSL_WAITFORSIZE
+					vlog('Packet Status: WBSL_SEND_INFO_PACKET')
 					self.sendburstheader( burstlist )
 				elif status == 8:	#WBSL_WAITFORDATA
+					vlog('Packet Status: WBSL_SEND_NEW_DATA_PACKET')
 					if burstlist:
 						self.sendburst( burstlist[0] )
 						burstlist = burstlist[1:]
@@ -450,6 +469,7 @@ class CBM:
 						vlog("WARNING: Burstlist underflow")
 						time.sleep(0.05)
 				else:			#WBSL_COMPLETE
+					vlog(f"Packet Status: Other ({status})")
 					done = 1
 					break
 		self.wbsl_stop()
@@ -645,8 +665,13 @@ q""" )
 		print("Put your watch in rfbsl \"open\" mode and press return. Afterwards,")
 		print( "wait for a few seconds and start rfbsl download on the watch..." )
 		input()
+		print("Sending updater")
+		vlog("Sending updater")
 		self.transmitburst( updater )
-		self.transmitburst( data )		
+		print("Sending program data")
+		vlog("Sending program data")
+		self.transmitburst( data )
+		print("Done")
 		time.sleep( 1 )
 
 ###################################################################################################
