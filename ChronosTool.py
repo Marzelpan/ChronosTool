@@ -679,7 +679,7 @@ if len( args ) == 0:
 
 #If no device option given, try to guess
 if not opt.device:
-	device_guess = ["/dev/ttyUSB0", "/dev/cu.usbmodem001"]
+	device_guess = ["/dev/ttyUSB0", "/dev/cu.usbmodem001", "/dev/ttyACM0"]
 	for path in device_guess:
 		if os.path.exists( path ):
 			opt.device = path
