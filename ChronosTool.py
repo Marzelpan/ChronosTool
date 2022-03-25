@@ -694,7 +694,7 @@ def vlog(message):
 def progressbar(done, total, length=40):
 	percent = done/total
 	bar_len = min(round(percent*length), length)
-	print(f"[{'#' * bar_len}{' ' * (length - bar_len)}] {100 * percent:.0f}%", end='\r')
+	print(f"\r[{'#' * bar_len}{' ' * (length - bar_len)}] {100 * percent:.0f}%", end='', flush=True)
 
 ###################################################################################################
 # main
