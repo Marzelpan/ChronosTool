@@ -700,6 +700,7 @@ def progressbar(done, total, length=40):
 # main
 
 from optparse import OptionParser
+from glob import glob
 
 usage = "usage: %prog [options] rfbsl|sync|prg|accel [<arguments> ...]"
 parser = OptionParser( usage=usage, version="%prog "+version )
@@ -721,10 +722,15 @@ if len( args ) == 0:
 
 #If no device option given, try to guess
 if not opt.device:
-	device_guess = ["/dev/ttyUSB0", "/dev/cu.usbmodem001", "/dev/ttyACM0"]
-	for path in device_guess:
-		if os.path.exists( path ):
-			opt.device = path
+	device_guess = [
+		"/dev/serial/by-id/usb-Texas_Instruments_eZ430-ChronosAP_*-if00",
+		"/dev/serial/by-id/usb-Texas_Instruments_CC1111_*-if00",
+		"/dev/ttyACM0", "/dev/ttyUSB0", "/dev/cu.usbmodem001"]
+	for pattern in device_guess:
+		matches = glob(pattern)
+		if matches:
+			opt.device = matches[0]
+			break
 #Check for device
 if (not opt.device) or (not os.path.exists( opt.device )):
 	print("ERROR: no Base Module device found, please specify as option", file=sys.stderr)
