@@ -474,9 +474,12 @@ class CBM:
 			else:			#WBSL_COMPLETE
 				vlog(f"Packet Status: Other ({status})")
 				time.sleep(0.2)
-				self.allstatus()
-				# done = 1
-				# break
+				status_sys = self.getstatus()[0]
+				vlog(f"System status: {status_sys}")
+				if status_sys == 0x0b: # HW_WBSL_ERROR
+					print("WSBL error", file=sys.stderr)
+					self.wbsl_stop()
+					sys.exit(5)
 		self.wbsl_stop()
 		time.sleep(1)
 
