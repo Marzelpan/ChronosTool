@@ -402,11 +402,10 @@ class CBM:
 			ret = self.send( payload.tocmd( 0x47 ) )
 		return ret
 
-	def sendburstheader( self, bursts ):
-		#Construct initial info block
-		nr_of_bursts = len( bursts )
-		payload = bytearray( [0x00, nr_of_bursts&0xff, nr_of_bursts>>8] ) # WBSL_INIT_PACKET, OP Code 00
+	def sendburstheader( self, nr_of_bursts ):
 		vlog(f"Send Burst Header: {nr_of_bursts} bursts")
+		#Construct initial info block
+		payload = bytearray( [0x00, nr_of_bursts&0xff, nr_of_bursts>>8] ) # WBSL_INIT_PACKET, OP Code 00
 		return self.sendcmd( 0x47, payload )
 
 	def spl_sync( self, dt=[], celsius=0, meters=0 ):
@@ -447,32 +446,39 @@ class CBM:
 		for chunk in chunklist:
 			burstlist += chunk.tobursts()
 
-		for burst in burstlist:
-			done = 0
-			while not done:
-				status = self.wbsl_getpacketstatus()[0]
-				if   status == 1:	#WBSL_DISABLED
-					vlog('Packet Status: WBSL_DISABLED')
-					time.sleep( 0.2 )
-				elif status == 2:	#WBSL_PROCESSING
-					vlog('Packet Status: WBSL_PROCESSING_PACKET')
-					time.sleep( 0.1 )
-				elif status == 4:	#WBSL_WAITFORSIZE
-					vlog('Packet Status: WBSL_SEND_INFO_PACKET')
-					self.sendburstheader( burstlist )
-				elif status == 8:	#WBSL_WAITFORDATA
-					vlog('Packet Status: WBSL_SEND_NEW_DATA_PACKET')
-					if burstlist:
-						self.sendburst( burstlist[0] )
-						burstlist = burstlist[1:]
-					else:
-						vlog("WARNING: Burstlist underflow")
-						time.sleep(0.05)
-				else:			#WBSL_COMPLETE
-					vlog(f"Packet Status: Other ({status})")
+		burst_count = len(burstlist)
+		bursts_sent = 0
+		done = False
+		while not done:
+			status = self.wbsl_getpacketstatus()[0]
+			if   status == 1:	#WBSL_DISABLED
+				vlog('Packet Status: WBSL_DISABLED')
+				time.sleep( 0.2 )
+			elif status == 2:	#WBSL_PROCESSING
+				vlog('Packet Status: WBSL_PROCESSING_PACKET')
+				time.sleep( 0.1 )
+			elif status == 4:	#WBSL_WAITFORSIZE
+				vlog('Packet Status: WBSL_SEND_INFO_PACKET')
+				assert bursts_sent == 0
+				self.sendburstheader( burst_count )
+			elif status == 8:	#WBSL_WAITFORDATA
+				vlog('Packet Status: WBSL_SEND_NEW_DATA_PACKET')
+				if bursts_sent != burst_count:
+					vlog(f"Send burst {bursts_sent}")
+					self.sendburst(burstlist[bursts_sent])
+					bursts_sent += 1
+				else:
+					vlog("Final burst sent")
 					done = 1
 					break
+			else:			#WBSL_COMPLETE
+				vlog(f"Packet Status: Other ({status})")
+				time.sleep(0.2)
+				self.allstatus()
+				# done = 1
+				# break
 		self.wbsl_stop()
+		time.sleep(1)
 
 	def wbsl_download( self, txtdata ):
 
