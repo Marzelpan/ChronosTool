@@ -467,6 +467,8 @@ class CBM:
 					vlog(f"Send burst {bursts_sent}")
 					self.sendburst(burstlist[bursts_sent])
 					bursts_sent += 1
+					progress = self.wbsl_getstatus()[0]
+					progressbar(progress, 100)
 				else:
 					vlog("Final burst sent")
 					done = 1
@@ -677,16 +679,22 @@ q""" )
 		print("Sending updater")
 		vlog("Sending updater")
 		self.transmitburst( updater )
-		print("Sending program data")
+		print("\nSending program data")
 		vlog("Sending program data")
 		self.transmitburst( data )
-		print("Done")
+		print("\nDone")
 		time.sleep( 1 )
 
 ###################################################################################################
 def vlog(message):
 	if opt.verbose:
 		print(message, file=sys.stderr)
+
+###################################################################################################
+def progressbar(done, total, length=40):
+	percent = done/total
+	bar_len = min(round(percent*length), length)
+	print(f"[{'#' * bar_len}{' ' * (length - bar_len)}] {100 * percent:.0f}%", end='\r')
 
 ###################################################################################################
 # main
