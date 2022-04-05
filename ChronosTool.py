@@ -674,13 +674,13 @@ q""" )
 		data.importtxt( txtdata )
 
 		print("Switch off your watch to start the rfbsl updater NOW.")
-		print("Sending updater")
+		print("Sending updater", flush=True)
 		vlog("Sending updater")
 		self.transmitburst( updater )
-		print("\nSending program data")
+		print("\nSending program data", flush=True)
 		vlog("Sending program data")
 		self.transmitburst( data )
-		print("\nDone")
+		print("\nDone", flush=True)
 		time.sleep( 1 )
 
 ###################################################################################################
